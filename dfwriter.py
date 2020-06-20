@@ -5,12 +5,11 @@ import numpy as np
 import cv2
 import pathlib as pl
 
-res = np.zeros((834, ), dtype=np.uint32)
+res = np.zeros((834, ), dtype=np.uint32) #init for vstacking
 
 for (root, _, fns) in os.walk(pl.Path("H:/Lic/NormalizedFace").joinpath("ClientNormalized")):
 	for fn in fns:
 		im = cv2.imread(str(pl.Path(root).joinpath(fn)))
-		#im = cv2.resize(im, (64, 64))
 
 		if im is None:
 			print(root + '\\' + fn)
@@ -20,7 +19,6 @@ for (root, _, fns) in os.walk(pl.Path("H:/Lic/NormalizedFace").joinpath("ClientN
 for (root, _, fns) in os.walk(pl.Path("H:/Lic/NormalizedFace").joinpath("ImposterNormalized")):
 	for fn in fns:
 		im = cv2.imread(str(pl.Path(root).joinpath(fn)))
-		#im = cv2.resize(im, (64, 64))
 
 		if im is None:
 			print(root + '\\' + fn)
@@ -30,4 +28,4 @@ cols = ['lbp_feat_' + str(i) for i in range(833)]
 cols.append('live')
 
 df = pd.DataFrame(res[1:], columns=cols)
-df.to_csv("dr_lbp_multiscale_features_nuaa.csv")
+df.to_csv("lbp_multiscale_features_nuaa.csv")
