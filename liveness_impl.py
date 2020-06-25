@@ -27,7 +27,7 @@ def lbp(res, im, y, x, t, d_types, d_d):
 	p = d_types[t, 0]
 
 	bits, prev = 0, -1
-	D, U = 0, 0
+	U = 0
 	
 	pix = im[y, x]
 
@@ -66,10 +66,12 @@ def lbp_ms_ker(res, im, t, d_types, d_d):
 #im ==> imagine color redimensionata(64, 64)
 
 def feature_extractor(im):
-	im = cv2.resize(im, (64, 64))
+	if im.shape != (64, 64, 3):
+		im = cv2.resize(im, (64, 64))
 	#imagine grayscale
-	im_g 	= cv2.cvtColor	(im, 	cv2.COLOR_BGR2GRAY)
+	im_g 	= cv2.equalizeHist(cv2.cvtColor	(im, 	cv2.COLOR_BGR2GRAY))
 	
+
 	cuIm_g 	= cp.array		(im_g, 		dtype=cp.uint8)
 	cuIm 	= cp.array		(im, 		dtype=cp.uint8)
 	
@@ -93,6 +95,43 @@ def feature_extractor(im):
 	
 	
 	return cp.asnumpy(res)
+
+@cuda.jit
+def histogram_rg_reduce(res, hr, hg):
+	i = cuda.grid(1)
+	if hr[i] > hg[i]:
+		res[i] = hr[i] - hg[i]
+	else:
+		res[i] = hg[i] - hr[i]
+
+
+def feature_extractor_extended(im):
+	im = cv2.resize(im, (64, 64))
+	fv = feature_extractor(im)
+
+	cuIm_r = cp.array(im[:, :, 2], dtype=cp.uint8) #red   ch
+	cuIm_g = cp.array(im[:, :, 1], dtype=cp.uint8) #green ch
+
+	res_g = cp.array([], dtype=cp.uint32)
+	res_r = cp.array([], dtype=cp.uint32)
+
+	lbp_res = cp.empty((64, 64), dtype=cp.int32)
+
+	lbp_ms_ker[(4, 2), (16, 32)](lbp_res, cuIm_g, 0, d_types, d_d)
+	for i in range(9):
+		res_g = cp.hstack((res_g, cp.histogram(lbp_res[corners[i][0]:corners[i][0]+26, corners[i][1]:corners[i][1]+26], bins=bins8)[0]))
+
+	lbp_ms_ker[(4, 2), (16, 32)](lbp_res, cuIm_r, 0, d_types, d_d)
+	for i in range(9):
+		res_r = cp.hstack((res_r, cp.histogram(lbp_res[corners[i][0]:corners[i][0]+26, corners[i][1]:corners[i][1]+26], bins=bins8)[0]))
+
+	histogram_rg_reduce[(1,), (531, )](res_r, res_r, res_g)
+
+	res_r = cp.asnumpy(res_r)
+	fv = np.hstack((fv, res_r))
+	return fv
+
+
 
 @njit
 def bins_init(bit_width, res=np.array([], dtype=np.uint32)):

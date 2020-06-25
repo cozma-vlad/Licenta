@@ -12,7 +12,6 @@ def testDevice(source):
 
 
 while True:
-	#im = cv2.imread("C:\\Users\\vlads\\Desktop\\download.jpg")
 	print(cap.isOpened())
 
 	ret, im = cap.read()
