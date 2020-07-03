@@ -5,39 +5,61 @@ import numpy as np
 import cv2
 import pathlib as pl
 from blessings import Terminal
+import argparse
 
+ap = argparse.ArgumentParser()
 
-res = np.zeros((1365, ), dtype=np.uint32) #init for vstacking
+ap.add_argument("-d", "--dataset", required=True,
+	help="path to input dataset")
+ap.add_argument("-o", "--output", required=True,
+	help="path to output file")
+args = vars(ap.parse_args())
+
+FEATURE_LENGTH = 1364
 
 cnt = 0
 real_len = 0
 fake_len = 0
 
+for (root, _, fns) in os.walk(pl.Path(args['dataset'] + os.path.sep + "real")):
+	real_len += len(fns)
+
+for (root, _, fns) in os.walk(pl.Path(args['dataset'] + os.path.sep + "fake")):
+	fake_len += len(fns)
 
 
-for (root, _, fns) in os.walk(pl.Path("/home/uzzi/Downloads/rose_photos/real")):
+res = np.empty((real_len + fake_len, FEATURE_LENGTH + 1), dtype=np.uint32)
+
+for (root, _, fns) in os.walk(pl.Path(args['dataset'] + os.path.sep + "real")):
 	real_len = len(fns)
 	for fn in fns:
 		im = cv2.imread(str(pl.Path(root).joinpath(fn)))
+		print('\rreal ' + str(cnt + 1) + ' of ' + str(real_len), end="")
+		#res = np.vstack((res, np.append(lv.feature_extractor_extended(im), np.array([1], dtype=np.uint32))))
 
-		print('real ' + str(cnt) + ' of ' + str(real_len) + '\r', end="")
+		res[cnt, :FEATURE_LENGTH] = lv.feature_extractor_extended(im)
+		res[cnt, FEATURE_LENGTH] = 1
+
 		cnt += 1
-		res = np.vstack((res, np.append(lv.feature_extractor_extended(im), np.array([1], dtype=np.uint32))))
+#cnt = 0
+print('')
 
-cnt = 0
-print('\n')
-
-for (root, _, fns) in os.walk(pl.Path("/home/uzzi/Downloads/rose_photos/fake")):
+for (root, _, fns) in os.walk(pl.Path(args['dataset'] + os.path.sep + "fake")):
 	fake_len = len(fns)
 	for fn in fns:
 		im = cv2.imread(str(pl.Path(root).joinpath(fn)))
+		print('\rfake ' + str(cnt - real_len + 1) + ' of ' + str(fake_len), end="")
+		#res = np.vstack((res, np.append(lv.feature_extractor_extended(im), np.array([0], dtype=np.uint32))))
 
-		print('fake ' + str(cnt) + ' of ' + str(fake_len) + '\r', end="")
+		res[cnt, :FEATURE_LENGTH] = lv.feature_extractor_extended(im)
+		res[cnt, FEATURE_LENGTH] = 0
+
 		cnt += 1
-		res = np.vstack((res, np.append(lv.feature_extractor_extended(im), np.array([0], dtype=np.uint32))))
 
+print('')
 cols = ['lbp_feat_' + str(i) for i in range(1364)]
 cols.append('live')
 
-df = pd.DataFrame(res[1:], columns=cols)
-df.to_csv("lbp_multiscale_features_ext_rose.csv")
+df = pd.DataFrame(res, columns=cols)
+df.to_csv(args['output'])
+print("Written " + args['output'])

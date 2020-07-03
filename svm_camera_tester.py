@@ -10,16 +10,28 @@ from sklearn import svm
 from joblib import dump, load
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix
+import argparse
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument("-c", "--csv-file", required=True,
+	help="path to input csv")
+ap.add_argument("-m", "--model", default='model.joblib',
+	help="path to output file")
+
+args = vars(ap.parse_args())
+
+
 
 live = {0:'fake', 1:'live'}
-df = pd.read_csv("lbp_multiscale_features_ext_rose.csv")
+df = pd.read_csv(args["csv_file"])
 
 
 y = df.pop('live').to_numpy()
 x = df.to_numpy()[:, 1:]
 
 (trainX, testX, trainY, testY) = train_test_split(x, y, test_size=0.25)
-clf = load('model.joblib')
+clf = load(args["model"])
 
 
 cap = cv2.VideoCapture(0)
